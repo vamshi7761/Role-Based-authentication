@@ -30,32 +30,36 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
-       // user.setRoles(Set.of(Role.ADMIN)); // Default role for new users
+       // user.setRoles(Set.of(Role.USER)); // Default role for new users
         userService.registerUser(user);
         return ResponseEntity.ok("User registered successfully");
     }
 
-
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User user) {
         try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword())
-            );
+        	
+            Authentication authentication = authenticationManager
+                    .authenticate(new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword()));
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             User loggedInUser = userService.findByUsername(user.getUsername()).orElseThrow();
-            String token = jwtUtil.generateToken(userDetails.getUsername(),
-                    loggedInUser.getRoles().stream()
-                            .map(Enum::name)
-                            .collect(Collectors.toSet()));
+            loggedInUser = userService.incrementTokenVersion(loggedInUser); 
+            String token = jwtUtil.generateToken(userDetails.getUsername(), loggedInUser.getRoles().stream()
+                    .map(Enum::name).collect(Collectors.toSet()), loggedInUser.getTokenVersion());
             return ResponseEntity.ok(token);
-        } catch (Exception e) {
+        } catch (AuthenticationException e) {
             return ResponseEntity.status(401).body("Invalid credentials");
         }
     }
+
     @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
-        // Handle logout
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String token) {
+        String jwtToken = token.replace("Bearer ", "");
+        String expiredToken = jwtUtil.expireToken(jwtToken); // Expire the token
+        String username = jwtUtil.extractUsername(jwtToken);
+        User user = userService.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        userService.incrementTokenVersion(user); // Increment the token version and save
         return ResponseEntity.ok("Logged out successfully");
     }
 }

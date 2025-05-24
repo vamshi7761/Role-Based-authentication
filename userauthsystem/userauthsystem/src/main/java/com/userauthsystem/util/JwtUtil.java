@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import com.userauthsystem.model.User;
+
 import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
 import java.util.Base64;
@@ -18,7 +20,6 @@ public class JwtUtil {
 
     private final Key key;
     
-    // Inject the secret key from application properties or environment variables
     @Value("${jwt.secret}")
     private String secretKey;
 
@@ -27,12 +28,22 @@ public class JwtUtil {
         this.key = new SecretKeySpec(keyBytes, SignatureAlgorithm.HS256.getJcaName());
     }
 
-    public String generateToken(String username, Set<String> roles) {
+    public String generateToken(String username, Set<String> roles, long tokenVersion) {
         return Jwts.builder()
                 .setSubject(username)
                 .claim("roles", roles)
+                .claim("tokenVersion", tokenVersion)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 30)) // Adjust expiration time as needed
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String expireToken(String token) {
+        Claims claims = getAllClaimsFromToken(token);
+        return Jwts.builder()
+                .setClaims(claims)
+                .setExpiration(new Date(System.currentTimeMillis())) // Immediate expiration
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -41,8 +52,13 @@ public class JwtUtil {
         return getAllClaimsFromToken(token).getSubject();
     }
 
+    public long extractTokenVersion(String token) {
+        return getAllClaimsFromToken(token).get("tokenVersion", Long.class);
+    }
+
     public Set<String> extractRoles(String token) {
-        return getAllClaimsFromToken(token).get("roles", Set.class);
+        Claims claims = getAllClaimsFromToken(token);
+        return claims.get("roles", Set.class); // Ensure the type matches the type used while creating
     }
 
     private Claims getAllClaimsFromToken(String token) {
@@ -58,11 +74,11 @@ public class JwtUtil {
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+    public boolean isTokenValid(String token, User user) {
+        return validateToken(token, user) && extractTokenVersion(token) == user.getTokenVersion();
     }
 
-    private Date extractExpiration(String token) {
-        return getAllClaimsFromToken(token).getExpiration();
+    private boolean isTokenExpired(String token) {
+        return getAllClaimsFromToken(token).getExpiration().before(new Date());
     }
 }

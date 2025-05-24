@@ -12,23 +12,6 @@ import org.springframework.stereotype.Service;
 import com.userauthsystem.model.User;
 import com.userauthsystem.repository.UserRepository;
 
-//@Service
-//public class UserService {
-//    @Autowired
-//    private UserRepository userRepository;
-//
-//    @Autowired
-//    private PasswordEncoder passwordEncoder;
-//
-//    public User registerUser(User user) {
-//        user.setPassword(passwordEncoder.encode(user.getPassword()));
-//        return userRepository.save(user);
-//    }
-//
-//    public Optional<User> findByUsername(String username) {
-//        return userRepository.findByUsername(username);
-//    }
-//}
 @Service
 public class UserService implements UserDetailsService {
 
@@ -40,11 +23,17 @@ public class UserService implements UserDetailsService {
 
     public User registerUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setTokenVersion(1); // Initialize token version
         return userRepository.save(user);
     }
 
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
+    }
+
+    public User incrementTokenVersion(User user) {
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        return userRepository.save(user);
     }
 
     @Override
