@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.userauthsystem.userauthsystem.UserauthsystemApplicationTests
--------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.439 s -- in com.userauthsystem.userauthsystem.UserauthsystemApplicationTests
